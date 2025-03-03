@@ -2,7 +2,10 @@ import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import cors from "cors";
-const allowedOrigins = ["http://localhost:5173", "https://example.com"];
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://chatup-lqz5.onrender.com",
+];
 const corsOptions = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
