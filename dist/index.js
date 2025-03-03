@@ -2,10 +2,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import cors from "cors";
-const allowedOrigins = [
-    "http://localhost:3000",
-    "https://chatup-lqz5.onrender.com",
-];
+const allowedOrigins = ["http://localhost:5173", "http://192.168.18.76:5173"];
 const corsOptions = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -17,13 +14,13 @@ const corsOptions = {
     },
     methods: ["GET", "POST"],
 };
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 const app = express();
 app.use(cors(corsOptions));
 const server = createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5173", "https://chatup-lqz5.onrender.com"],
+        origin: allowedOrigins,
         methods: ["GET", "POST"],
     },
 });
@@ -77,7 +74,8 @@ io.on("connection", (socket) => {
         io.to(data.target).emit("answer", { sdp: data.sdp, from: socket.id });
     });
     socket.on("ice-candidate", (data) => {
-        io.to(data.target).emit("ice-candidate", data.candidate);
+        const socketID = users[data.target].socketID;
+        io.to(socketID).emit("ice-candidate", data.candidate);
     });
     // deleting the disconnected user
     socket.on("disconnect", () => {
