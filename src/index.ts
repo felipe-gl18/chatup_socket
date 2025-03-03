@@ -102,6 +102,4 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(port, () =>
-  console.log("The server is running at http://localhost:3000")
-);
+server.listen(port, () => console.log(`The server is running at ${port}`));
