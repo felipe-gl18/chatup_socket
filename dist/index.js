@@ -71,10 +71,11 @@ io.on("connection", (socket) => {
     });
     socket.on("offer", (data) => {
         const socketID = users[data.target].socketID;
-        io.to(socketID).emit("offer", { sdp: data.sdp, from: socket.id });
+        io.to(socketID).emit("offer", { sdp: data.sdp, from: data.from });
     });
     socket.on("answer", (data) => {
-        io.to(data.target).emit("answer", { sdp: data.sdp, from: socket.id });
+        const socketID = users[data.target].socketID;
+        io.to(socketID).emit("answer", { sdp: data.sdp, from: socket.id });
     });
     socket.on("ice-candidate", (data) => {
         const socketID = users[data.target].socketID;
