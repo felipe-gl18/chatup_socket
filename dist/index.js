@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import cors from "cors";
 const allowedOrigins = [
     "http://localhost:5173",
@@ -20,6 +21,7 @@ const corsOptions = {
 const port = Number(process.env.PORT) || 3000;
 const app = express();
 app.use(cors(corsOptions));
+app.use(express.json());
 const server = createServer(app);
 const io = new Server(server, {
     cors: {
@@ -28,21 +30,26 @@ const io = new Server(server, {
     },
 });
 const users = {};
+app.post("/register", (request, response) => {
+    const userData = request.body;
+    const token = jwt.sign(userData, String(process.env.SECRET_KEY));
+    response.json({ ...userData, token });
+});
 io.on("connection", (socket) => {
     socket.on("register", (user) => {
-        users[user.phonenumber] = { ...user, socketID: socket.id };
+        users[user.token] = { ...user, socketID: socket.id };
         io.emit("newUser", users);
     });
-    socket.on("getUsers", (phonenumber) => {
+    socket.on("getUsers", (token) => {
         const usersList = { ...users };
-        delete usersList[phonenumber];
+        delete usersList[token];
         socket.emit("users", usersList);
     });
-    socket.on("deleteUser", ({ deletingUserPhonenumber, deletedUserPhonenumber }) => {
-        const socketID = users[deletingUserPhonenumber].socketID;
+    socket.on("deleteUser", ({ deletingUserToken, deletedUserToken }) => {
+        const socketID = users[deletingUserToken].socketID;
         const usersList = { ...users };
-        delete usersList[deletedUserPhonenumber];
-        delete usersList[deletingUserPhonenumber];
+        delete usersList[deletedUserToken];
+        delete usersList[deletingUserToken];
         io.to(socketID).emit("users", usersList);
     });
     socket.on("sendMessage", ({ sender, receiver, message }) => {
@@ -57,16 +64,16 @@ io.on("connection", (socket) => {
         const socketID = users[receiver].socketID;
         io.to(socketID).emit("receive_call", { requester, type });
     });
-    socket.on("request_call_rejected", ({ requesterPhonenumber }) => {
-        const socketID = users[requesterPhonenumber].socketID;
+    socket.on("request_call_rejected", ({ requesterToken }) => {
+        const socketID = users[requesterToken].socketID;
         io.to(socketID).emit("request_call_rejected");
     });
-    socket.on("request_call_accepted", ({ requesterPhonenumber }) => {
-        const socketID = users[requesterPhonenumber].socketID;
+    socket.on("request_call_accepted", ({ requesterToken }) => {
+        const socketID = users[requesterToken].socketID;
         io.to(socketID).emit("request_call_accepted");
     });
-    socket.on("finish_call", ({ requesterPhonenumber }) => {
-        const socketID = users[requesterPhonenumber].socketID;
+    socket.on("finish_call", ({ requesterToken }) => {
+        const socketID = users[requesterToken].socketID;
         io.to(socketID).emit("finish_call");
     });
     socket.on("offer", (data) => {
@@ -83,10 +90,10 @@ io.on("connection", (socket) => {
     });
     // deleting the disconnected user
     socket.on("disconnect", () => {
-        const phonenumber = Object.keys(users).find((key) => users[key].socketID == socket.id);
-        if (!phonenumber)
+        const token = Object.keys(users).find((key) => users[key].socketID == socket.id);
+        if (!token)
             return;
-        delete users[phonenumber];
+        delete users[token];
         io.emit("disconnectedUser");
     });
 });

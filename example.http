@@ -1,0 +1,7 @@
+POST http://localhost:3000/register
+content-type: application/json
+
+{
+    "username": "Felipe Gadelha Lino",
+    "email": "felipegadelha2004@gmail.com"
+}
