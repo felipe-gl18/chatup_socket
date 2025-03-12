@@ -90,9 +90,9 @@ io.on("connection", (socket) => {
     io.to(socketID).emit("request_call_rejected");
   });
 
-  socket.on("request_call_accepted", ({ requesterToken }) => {
+  socket.on("request_call_accepted", ({ requesterToken, type }) => {
     const socketID = users[requesterToken].socketID;
-    io.to(socketID).emit("request_call_accepted");
+    io.to(socketID).emit("request_call_accepted", { type });
   });
 
   socket.on("finish_call", ({ requesterToken }) => {
@@ -102,7 +102,11 @@ io.on("connection", (socket) => {
 
   socket.on("offer", (data) => {
     const socketID = users[data.target].socketID;
-    io.to(socketID).emit("offer", { sdp: data.sdp, from: data.from });
+    io.to(socketID).emit("offer", {
+      sdp: data.sdp,
+      from: data.from,
+      type: data.type,
+    });
   });
 
   socket.on("answer", (data) => {
