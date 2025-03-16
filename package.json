@@ -5,7 +5,7 @@
   "types": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts ",
+    "dev": "nodemon --ext ts --exec tsx src/index.ts",
     "test:debug": ""
   },
   "keywords": [],
@@ -15,6 +15,7 @@
   "description": "",
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.9",
+    "nodemon": "^3.1.9",
     "typescript": "^5.7.3"
   },
   "dependencies": {

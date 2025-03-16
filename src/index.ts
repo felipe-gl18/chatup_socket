@@ -3,7 +3,8 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import cors from "cors";
-import dotenv from "dotenv/config";
+import "dotenv/config";
+import { randomUUID } from "node:crypto";
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -40,14 +41,20 @@ type User = {
   email: string;
   token: string;
   socketID: string;
+  photo: ArrayBuffer;
 };
 
 const users: { [key: string]: User } = {};
+const messages: { [key: string]: any[] | null } = {};
+const deletedUsers: { [key: string]: string[] | null } = {};
 
 app.post("/register", (request, response) => {
   const userData = request.body;
   const token = jwt.sign(userData, String(process.env.SECRET_KEY));
-  response.json({ ...userData, token });
+  response.json({
+    ...userData,
+    token,
+  });
 });
 
 io.on("connection", (socket) => {
@@ -63,21 +70,73 @@ io.on("connection", (socket) => {
   });
 
   socket.on("deleteUser", ({ deletingUserToken, deletedUserToken }) => {
-    const socketID = users[deletingUserToken].socketID;
-    const usersList = { ...users };
-    delete usersList[deletedUserToken];
-    delete usersList[deletingUserToken];
-    io.to(socketID).emit("users", usersList);
+    const deletingSocketID = users[deletingUserToken].socketID;
+    const deletedSocketID = users[deletedUserToken].socketID;
+
+    deletedUsers[deletingUserToken] = deletedUsers[deletingUserToken] || [];
+    deletedUsers[deletedUserToken] = deletedUsers[deletedUserToken] || [];
+
+    if (!deletedUsers[deletingUserToken].includes(deletedUserToken)) {
+      deletedUsers[deletingUserToken].push(deletedUserToken);
+    }
+
+    if (!deletedUsers[deletedUserToken].includes(deletingUserToken)) {
+      deletedUsers[deletedUserToken].push(deletingUserToken);
+    }
+
+    const getFilteredUsers = (token: string) => {
+      const blockedTokens = new Set(deletedUsers[token] || []);
+      blockedTokens.add(token);
+
+      return Object.fromEntries(
+        Object.entries(users).filter(
+          ([userToken]) => !blockedTokens.has(userToken)
+        )
+      );
+    };
+
+    io.to(deletingSocketID).emit("users", getFilteredUsers(deletingUserToken));
+    io.to(deletedSocketID).emit("users", getFilteredUsers(deletedUserToken));
   });
 
   socket.on("sendMessage", ({ sender, receiver, message }) => {
-    const socketID = users[receiver].socketID;
-    io.to(socketID).emit("newMessage", { sender, message });
+    const senderSocketID = users[sender].socketID;
+    const receiverSocketID = users[receiver].socketID;
+
+    const messagesAccessToken = [sender, receiver].sort().join("|");
+    const UUID = randomUUID();
+
+    if (messages[messagesAccessToken]) {
+      messages[messagesAccessToken].push({
+        ...message,
+        sender,
+        receiver,
+        UUID,
+      });
+    } else {
+      messages[messagesAccessToken] = [
+        {
+          ...message,
+          sender,
+          receiver,
+          UUID,
+        },
+      ];
+    }
+
+    io.to([receiverSocketID, senderSocketID]).emit("newMessage", {
+      [messagesAccessToken]: messages[messagesAccessToken],
+    });
   });
 
-  socket.on("deleteMessage", ({ sender, receiver, messageID }) => {
-    const socketID = users[receiver].socketID;
-    io.to(socketID).emit("deleteMessage", { sender, messageID });
+  socket.on("deleteMessage", ({ requester, receiver, UUID, accessToken }) => {
+    const requesterSocketID = users[requester].socketID;
+    const receiverSocketID = users[receiver].socketID;
+
+    io.to([requesterSocketID, receiverSocketID]).emit("deleteMessage", {
+      accessToken,
+      UUID,
+    });
   });
 
   socket.on("request_call", ({ requester, receiver, type }) => {
