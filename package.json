@@ -5,7 +5,7 @@
   "types": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon --ext ts --exec tsx src/index.ts",
+    "dev": "nodemon --ext ts --exec tsx src/infrastructure/web/server.ts",
     "test:debug": ""
   },
   "keywords": [],
